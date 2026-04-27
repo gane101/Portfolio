@@ -444,11 +444,7 @@
       </p>
 
       <p>
-        All of them reduces the percentage more than previous one. Let's call them Ganesh Numbers for now.
-      </p>
-
-      <p>
-        While looking at the Ganesh Numbers being printed one by one, I checked their prime factorisation and it was interesting. 2 is a prime itself, 6 = 2x3, 30 = 2x3x5, 210 = 2x3x5x7 and so on. We had a repeating pattern. To check if it actually works, I wrote another python script and sure enough, it kept getting better and better.
+        All of them reduces the percentage more than previous one. While looking at the numbers being printed one by one, I checked their prime factorisation and it was interesting. 2 is a prime itself, 6 = 2x3, 30 = 2x3x5, 210 = 2x3x5x7 and so on. These are called primorials. To check if it actually works, I wrote another python script and sure enough, it kept getting better and better.
       </p>
 
       <div class="img-block">
@@ -501,7 +497,7 @@
       <h3 id = "Vectorisation">Vectorisation</h3>
 
       <p>
-        I made another python code to implement this method for any Ganesh Number you want. This is how the algorithm roughly works:
+        I made another python code to implement this method for any primorial number you want. This is how the algorithm roughly works:
       </p>
 
       <div class="code-block">
@@ -533,9 +529,9 @@ for i in range(nums/chosen_number):
       <h2 id = "Issues">Issues</h2>
 
       <p><br>
-        1. There are some little issues with this method. It only works after a certain Ganesh Number. For my machine it was 2310.<br><br>
+        1. There are some little issues with this method. It only works after a certain primorial number. For my machine it was 2310.<br><br>
         2. While we get a better performance, a lot of time can be wasted on finding all the primes up to the number chosen.<br><br>
-        3. Sometimes when you choose a number a little too high compared to the numbers you have to check, it could have worse performance. The Ganesh Number has to be picked carefully.
+        3. Sometimes when you choose a number a little too high compared to the numbers you have to check, it could have worse performance. The primorial has to be picked carefully.
       </p>
 
       <h2>Specs</h2>
