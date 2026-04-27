@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vectorisation for finding Prime Numbers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --accent: #00FF88;
+    --accent2: #FF3366;
+    --dark: #0a0a0a;
+    --mid: #141414;
+    --border: #2a2a2a;
+    --text: #e8e8e0;
+    --muted: #555;
+    --mono: 'Space Mono', monospace;
+    --display: 'Syne', sans-serif;
+  }
+
+  body {
+    background: var(--dark);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  .noise {
+    position: fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity: 0.4;
+  }
+  .scanlines {
+    position: fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+  }
+
+  .wrapper { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 2rem; }
+
+  /* NAV */
+  nav {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 2rem; border-bottom: 1px solid var(--border);
+  }
+  .nav-logo {
+    font-family: var(--display); font-size: 18px; font-weight: 800;
+    color: var(--accent); letter-spacing: -0.5px; text-decoration: none;
+  }
+  .nav-links { display: flex; gap: 1.5rem; }
+  .nav-links a {
+    color: var(--muted); text-decoration: none; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 2px; transition: color 0.2s;
+  }
+  .nav-links a:hover, .nav-links a.active { color: var(--accent); }
+
+  /* BREADCRUMB */
+  .breadcrumb {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 1.5rem 0; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 2px; color: var(--muted);
+  }
+  .breadcrumb a { color: var(--muted); text-decoration: none; transition: color 0.2s; }
+  .breadcrumb a:hover { color: var(--accent); }
+  .breadcrumb .sep { color: var(--border); }
+  .breadcrumb .current { color: var(--text); }
+
+  /* POST HEADER */
+  .post-header {
+    padding: 2rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0;
+  }
+  .post-tag {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 3px;
+    color: var(--accent); margin-bottom: 1.5rem;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .post-tag::before { content: ''; display: inline-block; width: 24px; height: 1px; background: var(--accent); }
+  .post-title {
+    font-family: var(--display); font-size: clamp(40px, 6vw, 48px);
+    font-weight: 800; line-height: 0.95; letter-spacing: -2px;
+    margin-bottom: 1.5rem;
+  }
+  .post-title span { color: var(--accent); }
+  .post-title .outline { -webkit-text-stroke: 1px var(--text); color: transparent; }
+  .post-meta-row {
+    display: flex; align-items: center; gap: 2rem; flex-wrap: wrap;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted);
+  }
+  .post-meta-row .meta-item { display: flex; align-items: center; gap: 6px; }
+  .post-meta-row .meta-item .label { color: var(--muted); }
+  .post-meta-row .meta-item .val { color: var(--text); }
+  .post-meta-row .dot-sep { color: var(--border); }
+
+  /* STATS STRIP */
+  .stats-strip {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+    background: var(--border); margin: 0 0 3rem;
+  }
+  .stat-cell { background: var(--mid); padding: 1.25rem 1.5rem; }
+  .stat-cell .s-label { font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-bottom: 6px; }
+  .stat-cell .s-val { font-family: var(--display); font-size: 22px; font-weight: 800; color: var(--accent); line-height: 1; }
+  .stat-cell .s-unit { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+  /* CONTENT LAYOUT */
+  .content-layout {
+    display: grid; grid-template-columns: 1fr 220px; gap: 4rem; align-items: start;
+  }
+
+  /* ARTICLE BODY */
+  .article-body { min-width: 0; }
+
+  .article-body p {
+    font-size: 14px; line-height: 2; color: #c8c8c0;
+    margin-bottom: 1.75rem;
+  }
+
+  .article-body h2 {
+    font-family: var(--display); font-size: 22px; font-weight: 800;
+    color: var(--text); margin: 3rem 0 1rem;
+    padding-top: 3rem; border-top: 1px solid var(--border);
+    letter-spacing: -0.5px;
+  }
+  .article-body h2::before {
+    content: '## '; color: var(--accent); font-family: var(--mono);
+    font-size: 14px; font-weight: 400;
+  }
+
+  .article-body h3 {
+    font-family: var(--display); font-size: 16px; font-weight: 800;
+    color: var(--text); margin: 2rem 0 0.75rem; letter-spacing: -0.3px;
+  }
+  .article-body h3::before {
+    content: '### '; color: var(--muted); font-family: var(--mono);
+    font-size: 12px; font-weight: 400;
+  }
+
+  /* INLINE CODE */
+  .article-body code {
+    font-family: var(--mono); font-size: 12px;
+    background: #1a1a1a; color: var(--accent);
+    padding: 2px 6px; border: 1px solid var(--border);
+  }
+
+  /* CODE BLOCK */
+  .code-block {
+    background: #0d0d0d; border: 1px solid var(--border);
+    margin: 2rem 0; position: relative;
+  }
+  .code-block-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--border);
+    font-size: 10px; text-transform: uppercase; letter-spacing: 2px;
+  }
+  .code-lang { color: var(--accent); }
+  .code-file { color: var(--muted); }
+  .code-block pre {
+    padding: 1.5rem 1.25rem; overflow-x: auto;
+    font-family: var(--mono); font-size: 12px; line-height: 2;
+    color: #c8c8c0;
+  }
+  .code-block pre .kw { color: #ff79c6; }
+  .code-block pre .fn { color: #50fa7b; }
+  .code-block pre .str { color: #f1fa8c; }
+  .code-block pre .cm { color: var(--muted); font-style: italic; }
+  .code-block pre .num { color: #bd93f9; }
+  .code-block pre .ty { color: #8be9fd; }
+
+  /* CALLOUT */
+  .callout {
+    border-left: 3px solid var(--accent); background: rgba(0,255,136,0.04);
+    padding: 1.25rem 1.5rem; margin: 2rem 0;
+  }
+  .callout.warn { border-color: var(--accent2); background: rgba(255,51,102,0.04); }
+  .callout .callout-label {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 3px;
+    color: var(--accent); margin-bottom: 0.5rem;
+  }
+  .callout.warn .callout-label { color: var(--accent2); }
+  .callout p { font-size: 13px; color: #b8b8b0; margin: 0; line-height: 1.8; }
+
+  /* BLOCKQUOTE */
+  .article-body blockquote {
+    border-left: 1px solid var(--muted); padding-left: 1.5rem;
+    margin: 2rem 0; color: var(--muted); font-style: italic; font-size: 14px; line-height: 1.9;
+  }
+
+  /* TABLE */
+  .data-table {
+    width: 100%; border-collapse: collapse; margin: 2rem 0;
+    font-size: 12px;
+  }
+  .data-table thead tr { border-bottom: 1px solid var(--accent); }
+  .data-table th {
+    text-align: left; padding: 0.75rem 1rem;
+    font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent);
+    font-weight: 400;
+  }
+  .data-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); color: #c8c8c0; }
+  .data-table tr:hover td { background: var(--mid); }
+  .data-table .good { color: var(--accent); }
+  .data-table .bad { color: var(--accent2); }
+
+  /* IMAGE PLACEHOLDER */
+  .img-block {
+    background: var(--mid);
+    border: 1px solid var(--border);
+    margin: 2rem 0;
+    overflow: hidden;
+  }
+  .img-block .img-label { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); }
+  .img-block .img-caption { font-size: 11px; color: var(--muted); margin-top: 0.5rem; text-align: center; }
+
+  /* FOOTNOTE DIVIDER */
+  .article-divider { border: none; border-top: 1px solid var(--border); margin: 3rem 0; }
+
+  /* TAGS */
+  .tags-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 2rem 0; }
+  .tag {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 2px;
+    color: var(--muted); border: 1px solid var(--border); padding: 5px 12px;
+    transition: all 0.2s; cursor: default;
+  }
+  .tag:hover { border-color: var(--accent); color: var(--accent); }
+
+  .code-block {
+    background: #0d0d0d;
+    border: 1px solid var(--border);
+    margin: 2rem 0;
+  }
+  .code-block-header {
+    display: flex; justify-content: space-between;
+    padding: 0.6rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px; text-transform: uppercase; letter-spacing: 2px;
+  }
+  .code-lang { color: var(--accent); }
+  .code-file { color: var(--muted); }
+  .code-block pre {
+    padding: 1.25rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.9;
+    color: #c8c8c0;
+    white-space: pre;
+  }
+
+  /* SIDEBAR */
+  .sidebar { position: sticky; top: 2rem; }
+
+  .toc-box {
+    background: var(--mid); border: 1px solid var(--border); padding: 1.5rem; margin-bottom: 1.5rem;
+  }
+  .toc-title {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 3px;
+    color: var(--accent); margin-bottom: 1.25rem; display: flex; align-items: center; gap: 8px;
+  }
+  .toc-title::before { content: '§'; }
+  .toc-list { list-style: none; display: flex; flex-direction: column; gap: 0.1rem; }
+  .toc-list li a {
+    font-size: 11px; color: var(--muted); text-decoration: none;
+    line-height: 2; transition: color 0.2s; display: block;
+    padding-left: 0.75rem; border-left: 1px solid var(--border);
+  }
+  .toc-list li a:hover, .toc-list li a.active { color: var(--accent); border-left-color: var(--accent); }
+  .toc-list li.sub a { font-size: 10px; padding-left: 1.5rem; }
+
+  .sidebar-meta { background: var(--mid); border: 1px solid var(--border); padding: 1.5rem; margin-bottom: 1.5rem; }
+  .sm-title { font-size: 9px; text-transform: uppercase; letter-spacing: 3px; color: var(--muted); margin-bottom: 1rem; }
+  .sm-row { display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--border); font-size: 11px; }
+  .sm-row:last-child { border-bottom: none; }
+  .sm-row .sm-k { color: var(--muted); }
+  .sm-row .sm-v { color: var(--text); text-align: right; }
+
+  .share-box { background: var(--mid); border: 1px solid var(--border); padding: 1.5rem; }
+  .share-title { font-size: 9px; text-transform: uppercase; letter-spacing: 3px; color: var(--muted); margin-bottom: 1rem; }
+  .share-btns { display: flex; flex-direction: column; gap: 0.5rem; }
+  .share-btn {
+    font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+    letter-spacing: 2px; padding: 8px 12px; background: transparent;
+    border: 1px solid var(--border); color: var(--muted); cursor: pointer;
+    transition: all 0.2s; text-align: left;
+  }
+  .share-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* POST FOOTER / NEXT-PREV */
+  .post-footer { border-top: 1px solid var(--border); margin-top: 4rem; padding-top: 3rem; }
+  .post-footer-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 3px;
+    color: var(--muted); margin-bottom: 1.5rem;
+  }
+  .post-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); }
+  .post-nav-item {
+    background: var(--mid); padding: 1.75rem; text-decoration: none; color: inherit;
+    transition: background 0.2s;
+  }
+  .post-nav-item:hover { background: #1a1a1a; }
+  .post-nav-item.next { text-align: right; }
+  .pni-dir { font-size: 9px; text-transform: uppercase; letter-spacing: 3px; color: var(--muted); margin-bottom: 0.5rem; }
+  .pni-title { font-family: var(--display); font-size: 16px; font-weight: 800; line-height: 1.2; }
+  .pni-title span { color: var(--accent); }
+
+  /* AUTHOR CARD */
+  .author-card {
+    display: flex; gap: 1.5rem; align-items: flex-start;
+    background: var(--mid); border: 1px solid var(--border); padding: 2rem; margin-top: 3rem;
+  }
+  .author-avatar {
+    width: 52px; height: 52px; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--display); font-size: 20px; font-weight: 800; color: #000;
+  }
+  .author-name { font-family: var(--display); font-size: 16px; font-weight: 800; margin-bottom: 0.25rem; }
+  .author-role { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); margin-bottom: 0.75rem; }
+  .author-bio { font-size: 12px; color: var(--muted); line-height: 1.8; }
+
+  /* ANIMATIONS */
+  .fade-in { opacity: 0; transform: translateY(16px); animation: fadeUp 0.6s forwards; }
+  @keyframes fadeUp { to { opacity:1; transform:translateY(0); } }
+  .d1{animation-delay:.1s} .d2{animation-delay:.2s} .d3{animation-delay:.3s}
+  .d4{animation-delay:.4s} .d5{animation-delay:.5s}
+
+  /* PROGRESS BAR */
+  #read-progress {
+    position: fixed; top: 0; left: 0; height: 5px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    z-index: 100; width: 0%; transition: width 0.1s;
+  }
+
+  @media (max-width: 700px) {
+    .content-layout { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .stats-strip { grid-template-columns: 1fr 1fr; }
+    .post-nav { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div id="read-progress"></div>
+<div class="noise"></div>
+<div class="scanlines"></div>
+
+<div class="wrapper">
+
+  <nav class="fade-in d1">
+    <a href="index.html" class="nav-logo">G.G._</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="blog.html" class="active">Writing</a>
+      <a href="index.html#contact">Contact</a>
+    </div>
+  </nav>
+
+  <!-- BREADCRUMB -->
+  <div class="breadcrumb fade-in d1">
+    <a href="index.html">Home</a>
+    <span class="sep">›</span>
+    <a href="blog.html">Writing</a>
+    <span class="sep">›</span>
+    <span class="current">Vectorisation for Better Prime Number Generator</span>
+  </div>
+
+  <!-- POST HEADER -->
+  <header class="post-header fade-in d2">
+    <div class="post-tag">Algorithm · Deep Dive</div>
+    <h1 class="post-title">
+      VECTORISATION FOR BETTER<br>
+      <span>PRIME NUMBER GENERATOR</span>
+    </h1>
+    <div class="post-meta-row">
+      <div class="meta-item"><span class="label">By</span><span class="val">Ganesh Godse</span></div>
+      <span class="dot-sep">·</span>
+      <div class="meta-item"><span class="label">Published</span><span class="val">April 26, 2026</span></div>
+    </div>
+  </header>
+
+  <!-- CONTENT LAYOUT -->
+  <div class="content-layout fade-in d4">
+
+    <!-- ARTICLE -->
+    <article class="article-body" id="Home">
+
+      <p>
+        Imagine you have to find all the prime numbers up to x. You can use <a href="https://en.wikipedia.org/wiki/Sieve_of_Eratosthenes">Sieve of Eratosthenes</a>. But Sieve of Eratosthenes is expensive memory-wise. And I dont have to tell you about the current RAM crisis.
+      </p>
+
+      <p>
+        Another alternative is to check each number individually. This is where we can optimise with various methods.
+      </p>
+
+      <h3 id="Limiting">Limiting the search upto the Square Root</h3>
+
+      <p>
+        When finding all the factors of a number, we dont have to check each number up to the given number. We can simply check for all the number up to the square root of the given number. Because all the factors of a number comes in pair. One on either side of the square root. If there is none on one side, there wont be any on another.
+      </p>
+
+      <div class="callout">
+        <div class="callout-label">For Example </div>
+        <p>factors of 120 -> 1,2,3,4,5,6,8,10,12,15,20,24,30,40,60,120.<br>
+
+        These can be divided in pairs on either side of the square root of 120 i.e. 10.95 <br>
+
+        Factors of 120 - >(1,120),(2,60),(3,40),(4,30),(5,24),(6,20),(8,15),(10,12)..</p>
+      </div>
+
+      <h3 id="Checking">Check only Prime Numbers</h3>
+
+      <p>
+        Another trick is to check the divisibility of number only with prime numbers below it. A number cant be divisible by 4 if its not divisible by 2. Similarly, if no prime under the square root of a number divides the it, then the given number is prime.
+      </p>
+
+      <div class="callout">
+        <div class="callout-label">For Example </div>
+        <p>For example, let's take 1123. It's square root is 33.51. <br>
+        The prime numbers below it are, 2,3,5,7,11,13,17,19,23,29,31. Since none of them divide 1123, it's a prime number.<br>
+        We reduced the numbers we had to check from 33 to 11.</p>
+      </div>
+
+      <h2 id="Initial">Initial idea</h2>
+
+      <p>
+        There is one more way to reduce the numbers we need to check. All the primes other than 2 are odd. Which mean we only have to check 50% numbers.  <br>
+        Some people figured out something even better. All primes other than 2 and 3 are of the form 6k ± 1. Which mean we can reduce the numbers to check all the way down to 33%. 2 numbers per 6. It's a significant improvement. But that got me thinking, "Is there a better number for this test?"
+      </p>
+
+      <p>I picked up the pen and paper and checked a few highly composite numbers. 4, 8, 12, 24, 30.<br>
+        We only have to check all the numbers which are co-prime to our number. In this case of 30 they are, (1,7,11,13,17,19,23,29). So we only have to check 8 numbers out of 30.<br>
+        All primes greater than 30 are of form, 30k + 1 or 30k + 7 or 30k + 11 and so on.<br>
+        Which means if we choose 30, we can reduce the percentage of numbers to 26.6%.<br>
+      </p>
+
+      <h2 id="Scaling"> Scaling the idea </h2>
+
+      <p>I ran a python script to check all such numbers. I searched through about 1 million numbers. And surprisingly, I found out that there are even more such numbers! <br>
+      2, 6, 30, 210, 2310, 30030, 510510.
+      </p>
+
+      <p>
+        All of them reduces the percentage more than previous one. Let's call them Ganesh Numbers for now.
+      </p>
+
+      <p>
+        While looking at the Ganesh Numbers being printed one by one, I checked their prime factorisation and it was interesting. 2 is a prime itself, 6 = 2x3, 30 = 2x3x5, 210 = 2x3x5x7 and so on. We had a repeating pattern. To check if it actually works, I wrote another python script and sure enough, it kept getting better and better.
+      </p>
+
+      <div class="img-block">
+        <img src="blog-1-1.png" alt="y% efficiency at xth prime" style="width:100%; height:100%; object-fit:contain;">
+        <div class="img-caption">y% efficiency at xth prime</div>
+      </div>
+
+      <p>
+        This is the point where I started doing some research.
+      </p>
+
+      <h3 id="Proof">A Proof</h3>
+
+      <p>
+        To find the number of co-primes of n which are less than n, Euler already gave us a beautiful formula. Euler's Toteint formula.
+      </p>
+
+      <div class="img-block">
+        <img src="blog-1-2.png" alt="Euler's Toteint Function" style="width:100%; height:100%; object-fit:contain;">
+      </div>
+
+      <p>
+        In our case, n = p1*p2*p3... But we have to divide this number by n to get the percentage of numbers. So the formula reduces to,
+      </p>
+
+      <p>
+        (1-1/p1) x (1-1/p2) x (1-1/p3) ...
+      </p>
+      <p>
+        As you can see, each term is smaller than one. So this multiplication keeps getting smaller infinitely. But we dont know if it's asymptotic to 0 or converges because each time, the number being multiplied is closer and closer to 1.
+      </p>
+
+      <p>
+        I looked around for clues, I played around with some ideas until finally, I found something.<br>
+        I had a hunch that I have seen something similar while I was studying the zeta function. I looked for it and found this:
+      </p>
+
+      <div class="img-block">
+        <img src="blog-1-3.png" alt="Euler's Toteint Function" style="width:100%; height:100%; object-fit:contain;">
+      </div>
+
+      <p>
+        As you can see, if we take a reciprocal of the zeta function and set s = 1, we get Euler's Totient function. And 1/ζ(1) tends to 0.
+      </p>
+      <p>
+        This proves that as we keep increasing n, we can keep getting better and better result because the function is asymptotic to 0.
+      </p>
+
+
+      <h3 id = "Vectorisation">Vectorisation</h3>
+
+      <p>
+        I made another python code to implement this method for any Ganesh Number you want. This is how the algorithm roughly works:
+      </p>
+
+      <div class="code-block">
+        <div class="code-block-header">
+          <span class="code-lang">Python</span>
+          <span class="code-file">main.py</span>
+        </div>
+        <pre>
+chosen_number = 30
+nums = 1000 // To get all primes upto 1000
+// keep a list of all primes upto chosen number
+primes = [2,3,5,7,11,13,17,19,23,29]
+r = np.array([1,7,11,13,17,19,23,29])
+for i in range(nums/chosen_number):
+    r += chosen_number
+    rc = r.copy()
+    for p in primes:
+        // Applying modulus function to the vector.
+        if 0 in rc%p: 
+            delete rc[indices of 0]
+    primes.append(rc)
+        </pre>
+      </div>
+
+      <p>
+        I have proper code posted <a href="https://github.com/gane101/Vectorised-Prime-Generator">here</a>. Check it out.
+      </p>
+
+      <h2 id = "Issues">Issues</h2>
+
+      <p><br>
+        1. There are some little issues with this method. It only works after a certain Ganesh Number. For my machine it was 2310.<br><br>
+        2. While we get a better performance, a lot of time can be wasted on finding all the primes up to the number chosen.<br><br>
+        3. Sometimes when you choose a number a little too high compared to the numbers you have to check, it could have worse performance. The Ganesh Number has to be picked carefully.
+      </p>
+
+      <h2>Specs</h2>
+
+      <table class="data-table" id="Specs">
+        <thead>
+          <tr>
+            <th>Primes upto N</th>
+            <th>Individual numbers</th>
+            <th>Sieve of Eradosthenes</th>
+            <th>My Algorithm</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1 Million</td>
+            <td>1.17 Sec</td>
+            <td>0.073 sec</td>
+            <td class="good">0.020 sec</td>
+          </tr>
+          <tr>
+            <td>10 Million</td>
+            <td>23.82 sec</td>
+            <td>0.777 sec</td>
+            <td class="good">0.635 sec</td>
+          </tr>
+          <tr>
+            <td>100 Million</td>
+            <td>0</td>
+            <td class="good">8.076 sec (required 950 Mb memory)</td>
+            <td class="good">14.31 sec</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- TAGS -->
+      <div class="tags-row">
+        <span class="tag">Python</span>
+        <span class="tag">Algorithm</span>
+        <span class="tag">Prime Numbers</span>
+      </div>
+
+      <!-- AUTHOR -->
+      <div class="author-card">
+        <div class="author-avatar">GG</div>
+        <div>
+          <div class="author-name">Ganesh Godse</div>
+          <div class="author-role">Software Engineer · Mumbai</div>
+          <div class="author-bio">I like to learn about different concepts from Computer science and Mathematics.</div>
+        </div>
+      </div>
+
+    </article>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+      <div class="toc-box">
+        <div class="toc-title">Contents</div>
+        <ul class="toc-list">
+          <li><a href="#Home">Vectorisation for better prime number generator</a></li>
+          <li class="sub"><a href="#Limiting">Limiting the search</a></li>
+          <li class="sub"><a href="#Checking">Checking primes</a></li>
+          <li><a href="#Initial">Initial Idea</a></li>
+          <li><a href="#Scaling">Scaling the Idea</a></li>
+          <li class="sub"><a href="#Proof">Proof</a></li>
+          <li class="sub"><a href="#Vectorisation">Vectorisation</a></li>
+          <li><a href="#Issues">Issues</a></li>
+          <li><a href="#Specs">Specs</a></li>
+        </ul>
+      </div>
+
+      <div class="share-box">
+        <div class="share-title">Share</div>
+        <div class="share-btns">
+          <button class="share-btn" onclick="location.href = 'https://www.linkedin.com/in/ganesh-godse-6a95a7372/';">LinkedIn ↗</button>
+          <button class="share-btn" onclick="location.href = 'https://www.github.com/gane101';">Github ↗</button>
+          <button class="share-btn" onclick="navigator.clipboard.writeText(window.location.href)">Copy Link ⎘</button>
+        </div>
+      </div>
+
+    </aside>
+  </div>
+
+</div>
+
+<script>
+  // Reading progress bar
+  window.addEventListener('scroll', () => {
+    const doc = document.documentElement;
+    const scrollTop = doc.scrollTop || document.body.scrollTop;
+    const scrollHeight = doc.scrollHeight - doc.clientHeight;
+    const pct = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+    document.getElementById('read-progress').style.width = pct + '%';
+  });
+</script>
+
+</body>
+</html>
